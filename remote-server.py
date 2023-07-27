@@ -41,7 +41,7 @@ async def post(req):
     return aiohttp.web.Response()
 
 def start(req):
-    name=base64.b64encode((round(time.time()*1000)&0xff_ff_ff_ff_ff_ff).to_bytes(6,'little')).decode()
+    name=base64.b64encode((round(time.time()*1000)&0xff_ff_ff_ff_ff_ff).to_bytes(6,'little')).decode().replace('/','_')
     print()
     print(f'host found! you can connect to it via')
     print(f'python remote.py http://[this server]:{port}/{name}')
