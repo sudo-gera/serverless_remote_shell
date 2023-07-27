@@ -3,7 +3,7 @@
 No encryption is performed. Use at your own risk.
 ## description:
 Imagine the situation:
-You are providing tech support. You want to connect to client, but you're not going to explain steps to setup sshd. This serverless remote shell will help you.
+You are providing tech support. You want to connect to your friend, but you're not going to explain steps to setup sshd. This serverless remote shell will help you.
 ## Installation (on your computer)
 1. install python3
 2. install pip
