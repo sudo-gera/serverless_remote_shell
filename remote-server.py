@@ -7,36 +7,19 @@ import sys
 import termios
 import copy
 import time
+from dataqueue import DataQueue
 
-class DataQueue:
-    def __init__(self):
-        self.queue=asyncio.Queue()
-        self.len=0
-        self.lock=asyncio.Lock()
-    def put(self,val:bytes):
-        assert type(val) in [bytes, bytearray]
-        self.queue.put_nowait(val)
-        self.len+=len(val)
-    def get(self):
-        data=[]
-        try:
-            while 1:
-                chunk=self.queue.get_nowait()
-                self.len-=len(chunk)
-                data.append(chunk)
-        except asyncio.QueueEmpty:
-            pass
-        data=b''.join(data)
-        return data
-    def __len__(self):
-        return self.len
-    async def get_wait(self):
-        async with self.lock:
-            data=await self.queue.get()
-            self.len-=len(data)
-            g=self.get()
-            data+=g
-            return data
+if len(sys.argv) < 2:
+    print('run one of these:')
+    print(f'''python {sys.argv[0]} [port] (host will be 0.0.0.0)''')
+    print(f'''python {sys.argv[0]} [host] [port]''')
+    exit()
+if len(sys.argv) == 2:
+    port=sys.argv[1]
+    host='0.0.0.0'
+else:
+    host=sys.argv[1]
+    port=sys.argv[2]
 
 d={}
 
@@ -59,8 +42,9 @@ async def post(req):
 
 def start(req):
     name=base64.b64encode((round(time.time()*1000)&0xff_ff_ff_ff_ff_ff).to_bytes(6,'little')).decode()
-    print(f'server found! you can connect via')
-    print(f'python remote.py http://127.0.0.1:{sys.argv[2]}/{name}')
+    print()
+    print(f'host found! you can connect to it via')
+    print(f'python remote.py http://[this server]:{port}/{name}')
     return aiohttp.web.Response(text=
         f'''export REMOTE_URL='http://{req.host}/{name}'\n'''+
         open('remote.sh').read()
@@ -75,4 +59,9 @@ app.add_routes([
 ])
 
 if __name__ == '__main__':
-    web.run_app(app,host=sys.argv[1], port=sys.argv[2])
+    print()
+    print('Now run on host:')
+    print()
+    print(f'curl -s http://[this server]:{port} | bash')
+    print()
+    web.run_app(app,host=host, port=port)
