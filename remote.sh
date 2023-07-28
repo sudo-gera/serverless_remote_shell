@@ -48,9 +48,10 @@ function main(){
             :
         done
     }
+    echo "this terminal is now controlled by your friend"
     send1 < "$tmppipe1" &
     send2 < "$tmppipe2" &
-    recv | ( script -q -F "$tmppipe1" || script -q -f "$tmppipe1" )
+    recv | ( script -q -F "$tmppipe1" 2>/dev/null || script -q -f "$tmppipe1" 2>/dev/null )
 }
 main
 

@@ -44,7 +44,7 @@ def start(req):
     name=base64.b64encode((round(time.time()*1000)&0xff_ff_ff_ff_ff_ff).to_bytes(6,'little')).decode().replace('/','_')
     print()
     print(f'host found! you can connect to it via')
-    print(f'python remote.py http://[this server]:{port}/{name}')
+    print(f'python remote.py http://127.0.0.1:{port}/{name}')
     return aiohttp.web.Response(text=
         f'''export REMOTE_URL='http://{req.host}/{name}'\n'''+
         open('remote.sh').read()

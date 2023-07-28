@@ -1,5 +1,4 @@
 import aiohttp
-from aiohttp import web
 import asyncio
 import base64
 import sys
@@ -7,11 +6,10 @@ import termios
 import copy
 from dataqueue import DataQueue
 
-class term_c:
+class term_controller:
     def __init__(self) -> None:
         self.entered=0
     def __enter__(self):
-        # print('enter')
         self.entered=1
         self.fd=sys.stdin.fileno()
         self.mode=termios.tcgetattr(self.fd)
@@ -26,15 +24,16 @@ class term_c:
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.mode)
         return self
     def __exit__(self,*a,**s):
-        # print('exit')
         if self.entered:
             termios.tcsetattr(self.fd, termios.TCSADRAIN, self.save)
             self.entered=0
             return True
 
-term=term_c()
+term=term_controller()
 
 running=1
+
+url = sys.argv[1]
 
 async def connect_stdin():
     loop = asyncio.get_event_loop()
@@ -49,30 +48,35 @@ async def read():
         with term:
             while running:
                 f=await e.read(1)
-                async with session.post(sys.argv[1]+'_server',data=f) as resp:
+                async with session.post(url+'_server',data=f) as resp:
                     pass
 
 async def write():
     async with aiohttp.ClientSession() as session:
         global running
         while running:
-            async with session.get(sys.argv[1]+'_client') as resp:
-                f=await resp.read()
-                t=[]
-                for w in f.split():
-                    if w==b'^^^^':
-                        running=0
-                    else:
-                        w=base64.b64decode(w)
-                        if len(w)==2:
-                            w=w[:-1]
-                        t.append(w)
-                t=b''.join(t)
-                run=term.__exit__()
-                sys.stdout.buffer.write(t)
-                sys.stdout.buffer.flush()
-                if run:
-                    term.__enter__()
+            try:
+                async with session.get(url+'_client') as resp:
+                    f=await resp.read()
+                    t=[]
+                    for w in f.split():
+                        if w==b'^^^^':
+                            running=0
+                        else:
+                            w=base64.b64decode(w)
+                            if len(w)==2:
+                                w=w[:-1]
+                            t.append(w)
+                    t=b''.join(t)
+                    run=term.__exit__()
+                    sys.stdout.buffer.write(t)
+                    sys.stdout.buffer.flush()
+                    if not running:
+                        print('hit enter to close connection...')
+                    if run:
+                        term.__enter__()
+            except asyncio.TimeoutError:
+                pass
 
 
 async def main():

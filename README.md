@@ -20,7 +20,7 @@ git clone https://github.com/sudo-gera/serverless_remote_shell
 ```
 cd serverless_remote_shell
 ```
-2. start server on your computer:
+2. start http server on your computer:
 ```
 python3 remote-server.py [port]
 ```
@@ -33,7 +33,7 @@ python3 remote-server.py [port]
 curl -s http://[your ip]:[port] | bash
 ```
 5. server will print url. copy it.
-5. on your computer in new terminal tab run command:
+6. on your computer in new terminal run command:
 ```
-python3 remote.py [url from ]
+python3 remote.py [copied url]
 ```
