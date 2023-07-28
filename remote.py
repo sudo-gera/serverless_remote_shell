@@ -72,7 +72,7 @@ async def write():
                     sys.stdout.buffer.write(t)
                     sys.stdout.buffer.flush()
                     if not running:
-                        print('hit enter to close connection...')
+                        print('hit enter to close the connection...')
                     if run:
                         term.__enter__()
             except asyncio.TimeoutError:
