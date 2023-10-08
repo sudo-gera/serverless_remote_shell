@@ -1,4 +1,13 @@
+#!/usr/bin/bash
 function main(){
+    if curl --version >/dev/null 2>/dev/null
+    then
+        function http_get(){ curl -s "$1"; }
+        function http_post(){ curl -s "$1" -d "$2"; }
+    else
+        function http_get(){ wget -qO- "$1"; }
+        function http_post(){ wget -qO- "$1" --post-data="$2"; }
+    fi
     tmppipe1="$(mktemp -u)"
     tmppipe2="$(mktemp -u)"
     mkfifo -m 600 "$tmppipe1"
@@ -32,7 +41,7 @@ function main(){
             then
                 if [ -n "$buff" ]
                 then
-                    if ! curl -s "$REMOTE_URL"_client -d "$(echo "$buff")"
+                    if ! http_post "$REMOTE_URL"_client "$buff"
                     then
                         stop=1
                     fi
@@ -43,15 +52,16 @@ function main(){
         done
     }
     function recv(){
-        while curl -s "$REMOTE_URL"_server
+        while http_get "$REMOTE_URL"_server
         do
             :
         done
     }
-    echo "this terminal is now controlled by your friend"
+    echo "This terminal is now controlled by your friend."
     send1 < "$tmppipe1" &
     send2 < "$tmppipe2" &
     recv | ( script -q -F "$tmppipe1" 2>/dev/null || script -q -f "$tmppipe1" 2>/dev/null )
+    echo "Your friend left the terminal."
 }
 main
 
