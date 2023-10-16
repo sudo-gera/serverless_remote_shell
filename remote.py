@@ -4,6 +4,7 @@ import base64
 import sys
 import termios
 import copy
+import traceback
 from dataqueue import DataQueue
 
 
@@ -52,14 +53,29 @@ async def connect_stdin_stdout():
 
 
 
+escape = b'~__.'
 
 async def read(e):
     async with aiohttp.ClientSession() as session:
         with term:
-            while running:
-                f = await e.read(1)
-                async with session.post(url + '_server', data=f) as resp:
-                    pass
+            try:
+                esc_prefix = b''
+                global running
+                while running:
+                    f = await e.read(1)
+                    esc_prefix += f
+                    f = b''
+                    if not escape.startswith(esc_prefix):
+                        f = esc_prefix
+                        esc_prefix = b''
+                    if escape == esc_prefix:
+                        running = 0
+                    if f:
+                        async with session.post(url + '_server', data=f) as resp:
+                            pass
+            except:
+                print(traceback.format_exc())
+                raise
 
 
 async def write(e):
