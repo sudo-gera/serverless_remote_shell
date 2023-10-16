@@ -9,47 +9,32 @@ function main(){
         function http_post(){ wget -qO- "$1" --post-data="$2"; }
     fi
     tmppipe1="$(mktemp -u)"
-    tmppipe2="$(mktemp -u)"
+    # tmppipe2="$(mktemp -u)"
     mkfifo -m 600 "$tmppipe1"
-    mkfifo -m 600 "$tmppipe2"
+    # mkfifo -m 600 "$tmppipe2"
     function send1(){
         IFS=''
-        while read -rn 1 text
+        while :
         do
-            echo "$text" | base64 | head -c 4 > "$tmppipe2"
-        done
-        echo "^^^^" > "$tmppipe2"
-    }
-    function send2(){
-        IFS=''
-        stop=0
-        buff=''
-        while [ $stop == 0 ]
-        do
-            send=1
-            if read -t 1 -n 4 text
+            read -rn 1024 -t 0.1 text
+            read_exit_code="$?"
+            if [ "$read_exit_code" -ne 0 -a "$read_exit_code" -le 128 ]
             then
-                send=0
-                if [ "$text" == $'^^^^' ]
-                then
-                    stop=1
-                    send=1
-                fi
-                buff="$buff $text"
+                break
             fi
-            if [ $send == 1 ]
+            if [ "$read_exit_code" -eq 0 ]
             then
-                if [ -n "$buff" ]
+                text="$text"$'\n'
+            fi
+            if ! [ -z "$text" ]
+            then
+                if ! http_post "$REMOTE_URL"_client "$(printf '%s' "$text" | base64)"
                 then
-                    if ! http_post "$REMOTE_URL"_client "$buff"
-                    then
-                        stop=1
-                    fi
-                    buff=''
+                    break
                 fi
-                sleep 1
             fi
         done
+        http_post "$REMOTE_URL"_client "^^^^"
     }
     function recv(){
         while http_get "$REMOTE_URL"_server
@@ -59,8 +44,12 @@ function main(){
     }
     echo "This terminal is now controlled by your friend."
     send1 < "$tmppipe1" &
-    send2 < "$tmppipe2" &
-    recv | ( script -q -F "$tmppipe1" 2>/dev/null || script -q -f "$tmppipe1" 2>/dev/null )
+    if script --version >/dev/null 2>/dev/null
+    then
+        recv | script -q -f "$tmppipe1"
+    else
+        recv | script -q -F "$tmppipe1"
+    fi
     echo "Your friend left the terminal."
 }
 main

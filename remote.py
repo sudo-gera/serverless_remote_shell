@@ -41,17 +41,19 @@ running = 1
 
 url = sys.argv[1]
 
-
-async def connect_stdin():
+async def connect_stdin_stdout():
     loop = asyncio.get_event_loop()
     reader = asyncio.StreamReader()
     protocol = asyncio.StreamReaderProtocol(reader)
-    await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
-    return reader
+    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+    w_transport, w_protocol = await loop.connect_write_pipe(asyncio.streams.FlowControlMixin, sys.stdout)
+    writer = asyncio.StreamWriter(w_transport, w_protocol, reader, loop)
+    return reader, writer
 
 
-async def read():
-    e = await connect_stdin()
+
+
+async def read(e):
     async with aiohttp.ClientSession() as session:
         with term:
             while running:
@@ -60,7 +62,7 @@ async def read():
                     pass
 
 
-async def write():
+async def write(e):
     async with aiohttp.ClientSession() as session:
         global running
         while running:
@@ -73,13 +75,11 @@ async def write():
                             running = 0
                         else:
                             w = base64.b64decode(w)
-                            if len(w) == 2:
-                                w = w[:-1]
                             t.append(w)
                     t = b''.join(t)
                     run = term.__exit__()
-                    sys.stdout.buffer.write(t)
-                    sys.stdout.buffer.flush()
+                    e.write(t)
+                    await e.drain()
                     if not running:
                         print('hit enter to close the connection...')
                     if run:
@@ -87,10 +87,10 @@ async def write():
             except asyncio.TimeoutError:
                 pass
 
-
 async def main():
-    asyncio.create_task(read())
-    asyncio.create_task(write())
+    reader, writer = await connect_stdin_stdout()
+    asyncio.create_task(read(reader))
+    asyncio.create_task(write(writer))
     await asyncio.gather(*asyncio.all_tasks() - {asyncio.current_task()})
     print('connection closed')
 
