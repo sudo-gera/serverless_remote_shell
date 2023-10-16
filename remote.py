@@ -55,14 +55,14 @@ async def connect_stdin_stdout():
 
 escape = b'~__.'
 
-async def read(e):
+async def read(reader):
     async with aiohttp.ClientSession() as session:
         with term:
             try:
                 esc_prefix = b''
                 global running
                 while running:
-                    f = await e.read(1)
+                    f = await reader.read(1)
                     esc_prefix += f
                     f = b''
                     if not escape.startswith(esc_prefix):
@@ -73,12 +73,15 @@ async def read(e):
                     if f:
                         async with session.post(url + '_server', data=f) as resp:
                             pass
+            except asyncio.CancelledError:
+                async with session.post(url + '_server', data=b'\n') as resp:
+                    pass
             except:
                 print(traceback.format_exc())
                 raise
 
 
-async def write(e):
+async def write(writer, reader_task):
     async with aiohttp.ClientSession() as session:
         global running
         while running:
@@ -93,20 +96,18 @@ async def write(e):
                             w = base64.b64decode(w)
                             t.append(w)
                     t = b''.join(t)
-                    run = term.__exit__()
-                    e.write(t)
-                    await e.drain()
+                    writer.write(t)
+                    await writer.drain()
                     if not running:
-                        print('hit enter to close the connection...')
-                    if run:
-                        term.__enter__()
+                        reader_task.cancel()
+                        # print('hit enter to close the connection...', end='\r\n')
             except asyncio.TimeoutError:
                 pass
 
 async def main():
     reader, writer = await connect_stdin_stdout()
-    asyncio.create_task(read(reader))
-    asyncio.create_task(write(writer))
+    rt = asyncio.create_task(read(reader))
+    asyncio.create_task(write(writer, rt))
     await asyncio.gather(*asyncio.all_tasks() - {asyncio.current_task()})
     print('connection closed')
 
